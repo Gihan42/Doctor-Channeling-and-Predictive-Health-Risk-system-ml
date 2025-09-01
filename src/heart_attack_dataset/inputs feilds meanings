@@ -1,0 +1,165 @@
+Medical Term Explanations:
+cp (Chest Pain Type):
+
+0: Asymptomatic (no pain)
+
+1: Typical angina (chest pain related to reduced heart blood flow)
+
+2: Atypical angina (non-heart-related chest pain)
+
+3: Non-anginal pain (other types of chest pain)
+
+trtbps (Resting Blood Pressure in mmHg):
+
+Your value: 12 (This seems extremely low - normal is 90-120 mmHg)
+
+Measures blood pressure at rest
+
+chol (Serum Cholesterol in mg/dl):
+
+Your value: 0 (Impossible biologically - normal is 125-200 mg/dl)
+
+Measures cholesterol levels in blood
+
+fbs (Fasting Blood Sugar > 120 mg/dl):
+
+0: False (≤ 120 mg/dl)
+
+1: True (> 120 mg/dl)
+
+Your value suggests normal blood sugar
+
+restecg (Resting Electrocardiographic Results):
+
+0: Normal
+
+1: ST-T wave abnormality
+
+2: Left ventricular hypertrophy
+
+Your value suggests an ECG abnormality
+
+thalach (Maximum Heart Rate Achieved):
+
+Your value: 17 (Extremely low - normal is 60-200 bpm)
+
+Measures peak heart rate during exercise
+
+exang (Exercise Induced Angina):
+
+0: No
+
+1: Yes
+
+Your value suggests no exercise-induced chest pain
+
+oldpeak (ST Depression Induced by Exercise):
+
+Your value: 1.4 (Mild abnormality)
+
+Measures ECG changes during exercise
+
+slope (Slope of Peak Exercise ST Segment):
+
+0: Downsloping
+
+1: Flat
+
+2: Upsloping (normal)
+
+Your value shows normal response
+
+ca (Number of Major Vessels Colored by Fluoroscopy):
+
+0-3: Number of visible vessels
+
+Your value: 0 (No blockages visible)
+
+thal (Thalassemia Stress Test Result):
+
+1: Normal
+
+2: Fixed defect
+
+3: Reversible defect
+
+Your value shows normal blood flow
+
+# class HeartPatient(BaseModel):
+#     age: int
+#     sex: int
+#     cp: int  #Chest Pain Type
+#     trtbps: int #Resting Blood Pressure in mmHg
+#     chol: int #Serum Cholesterol in mg/d
+#     fbs: int #Fasting Blood Sugar > 120 mg/dl
+#     restecg: int #Resting Electrocardiographic results
+#     thalach: int  #Maximum Heart Rate Achieved
+#     exang: int    # Exercise Induced Angina
+#     oldpeak: float # ST depression induced
+#     slope: int    # Slope of the peak exercise ST segment
+#     ca: int       # Number of Major Vessels Colored by Fluoroscopy
+#     thal: int     # Thalassemia Stress Test Result
+
+low risk json
+{
+  "age": 25,
+  "sex": 0,
+  "cp": 0,
+  "trtbps": 110,
+  "chol": 160,
+  "fbs": 0,
+  "restecg": 0,
+  "thalach": 180,
+  "exang": 0,
+  "oldpeak": 0.0,
+  "slope": 2,
+  "ca": 0,
+  "thal": 2
+},
+{
+  "age": 25,
+  "sex": 0,        // Female
+  "cp": 0,         // No chest pain
+  "trtbps": 110,   // Normal blood pressure
+  "chol": 160,     // Healthy cholesterol
+  "fbs": 0,        // Normal blood sugar
+  "restecg": 0,    // Normal ECG
+  "thalach": 180,  // High max heart rate (healthy)
+  "exang": 0,      // No exercise-induced angina
+  "oldpeak": 0.0,  // No ST depression
+  "slope": 2,      // Upsloping (normal)
+  "ca": 0,         // No major vessel blockage
+  "thal": 2        // Normal thalassemia test
+}
+
+high risk json
+{
+  "age": 65,
+  "sex": 1,
+  "cp": 3,
+  "trtbps": 160,
+  "chol": 300,
+  "fbs": 1,
+  "restecg": 1,
+  "thalach": 120,
+  "exang": 1,
+  "oldpeak": 2.5,
+  "slope": 0,
+  "ca": 2,
+  "thal": 3
+},
+{
+  "age": 65,
+  "sex": 1,        // Male
+  "cp": 3,         // Typical angina
+  "trtbps": 160,   // High blood pressure
+  "chol": 300,     // High cholesterol
+  "fbs": 1,        // High blood sugar
+  "restecg": 1,    // Abnormal ECG
+  "thalach": 120,  // Low max heart rate
+  "exang": 1,      // Exercise-induced angina
+  "oldpeak": 2.5,  // Significant ST depression
+  "slope": 0,      // Downsloping
+  "ca": 2,         // Two major vessels blocked
+  "thal": 3        // Abnormal thalassemia test
+}
