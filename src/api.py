@@ -1,16 +1,17 @@
 # api.py
-from fastapi import FastAPI,HTTPException
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Optional
+from typing import List
+import requests
+
+# Import your local predictors
 from src.cancer_predictor import CancerPredictor
 from src.heart_attack_prediction import HeartAttackPredictor
-from huggingface_hub import InferenceClient
-from typing import List
 
 app = FastAPI()
 
-# Allow CORS for frontend applications
+# Allow CORS for frontend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -18,9 +19,23 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-client = InferenceClient(
-    api_key=""
-)
+
+# Gemini AI configuration
+API_KEY = ""
+URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={API_KEY}"
+
+# ----------------- Data Models -----------------
+class Message(BaseModel):
+    role: str
+    content: str
+
+class ChatRequest(BaseModel):
+    messages: List[Message]
+
+class ChatResponse(BaseModel):
+    response: str
+    messages: List[Message]
+
 class PatientData(BaseModel):
     Age: int
     Gender: int
@@ -34,29 +49,19 @@ class PatientData(BaseModel):
 class HeartPatient(BaseModel):
     age: int
     sex: int
-    cp: int  #Chest Pain Type
-    trtbps: int #Resting Blood Pressure in mmHg
-    chol: int #Serum Cholesterol in mg/d
-    fbs: int #Fasting Blood Sugar > 120 mg/dl
-    restecg: int #Resting Electrocardiographic results
-    thalach: int  #Maximum Heart Rate Achieved
-    exang: int    # Exercise Induced Angina
-    oldpeak: float # ST depression induced
-    slope: int    # Slope of the peak exercise ST segment
-    ca: int       # Number of Major Vessels Colored by Fluoroscopy
-    thal: int     # Thalassemia Stress Test Result
+    cp: int
+    trtbps: int
+    chol: int
+    fbs: int
+    restecg: int
+    thalach: int
+    exang: int
+    oldpeak: float
+    slope: int
+    ca: int
+    thal: int
 
-class Message(BaseModel):
-    role: str
-    content: str
-
-class ChatRequest(BaseModel):
-    messages: List[Message]
-
-class ChatResponse(BaseModel):
-    response: str
-    messages: List[Message]
-# Initialize predictors
+# ----------------- Initialize Predictors -----------------
 try:
     cancer_predictor = CancerPredictor(
         data_path='src/cancer_dataset/The_Cancer_data_1500_V2.csv')
@@ -65,6 +70,7 @@ try:
 except Exception as e:
     print(f"Error initializing predictors: {e}")
 
+# ----------------- Routes -----------------
 @app.get("/")
 def read_root():
     return {"status": "Cancer & Heart Attack Prediction API is running"}
@@ -90,28 +96,25 @@ async def predict_cancer_risk(patient: PatientData):
             "interpretation": result['interpretation']
         }
     except Exception as e:
-        return {
-            "status": "error",
-            "message": str(e)
-        }
+        return {"status": "error", "message": str(e)}
 
 @app.post("/predict/heart-attack")
 async def predict_heart_attack(patient: HeartPatient):
     try:
         input_features = {
-            'ge': patient.age,  # Changed from age to ge
+            'ge': patient.age,
             'sex': patient.sex,
             'cp': patient.cp,
             'trtbps': patient.trtbps,
             'chol': patient.chol,
             'fbs': patient.fbs,
             'restecg': patient.restecg,
-            'thalachh': patient.thalach,  # No change needed (already correct)
-            'exng': patient.exang,  # No change needed
+            'thalachh': patient.thalach,
+            'exng': patient.exang,
             'oldpeak': patient.oldpeak,
-            'slp': patient.slope,  # No change needed
-            'caa': patient.ca,  # No change needed
-            'thall': patient.thal  # No change needed
+            'slp': patient.slope,
+            'caa': patient.ca,
+            'thall': patient.thal
         }
         result = heart_predictor.predict(input_features)
         return {
@@ -121,39 +124,51 @@ async def predict_heart_attack(patient: HeartPatient):
             "interpretation": result['interpretation']
         }
     except Exception as e:
-        return {
-            "status": "error",
-            "message": str(e)
-        }
+        return {"status": "error", "message": str(e)}
 
-
+# ----------------- Gemini Chat Endpoint -----------------
 @app.post("/predict/chat", response_model=ChatResponse)
 async def chat_endpoint(chat_request: ChatRequest):
     try:
-        # Convert Pydantic messages to dict format for HuggingFace
-        messages = [{"role": msg.role, "content": msg.content} for msg in chat_request.messages]
+        user_message = chat_request.messages[-1].content if chat_request.messages else "Hello!"
 
-        # Create the completion request
-        stream = client.chat.completions.create(
-            model="meta-llama/Llama-3.2-3B-Instruct",
-            messages=messages,
-            max_tokens=500,
-            stream=True
-        )
+        payload = {
+            "contents": [
+                {
+                    "parts": [
+                        {"text": user_message}
+                    ]
+                }
+            ]
+        }
 
-        # Accumulate the response
-        full_response = ""
-        for chunk in stream:
-            if chunk.choices[0].delta.content:
-                full_response += chunk.choices[0].delta.content
+        headers = {
+            "Content-Type": "application/json",
+            "X-goog-api-key": API_KEY
+        }
 
-        # Update messages with assistant's response
-        messages.append({"role": "assistant", "content": full_response})
+        try:
+            res = requests.post(URL, headers=headers, json=payload, timeout=15)
+            res.raise_for_status()
+            data = res.json()
+        except requests.exceptions.RequestException as e:
+            raise HTTPException(status_code=500, detail=f"Gemini API request failed: {e}")
 
-        return ChatResponse(
-            response=full_response,
-            messages=[Message(**msg) for msg in messages]
-        )
+        # Safely parse
+        bot_response = "Sorry, I couldn’t understand the response from Gemini."
+        try:
+            candidates = data.get("candidates", [])
+            if candidates and "content" in candidates[0]:
+                parts = candidates[0]["content"].get("parts", [])
+                if parts and "text" in parts[0]:
+                    bot_response = parts[0]["text"]
+        except Exception as e:
+            print("Parsing error:", e)
+
+        messages = chat_request.messages + [Message(role="assistant", content=bot_response)]
+        return ChatResponse(response=bot_response, messages=messages)
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Chat endpoint error: {e}")
+
+
